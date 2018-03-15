@@ -1,27 +1,19 @@
 import React, { Component } from 'react';
 import logo from './logo.svg';
 import './App.css';
+import axios from 'axios'
+//const isSearched = searchTerm => item => item.title.toLowerCase().includes(searchTerm.toLowerCase());
 
-const isSearched = searchTerm => item => item.title.toLowerCase().includes(searchTerm.toLowerCase());
+const DEFAULT_QUERY = 'redux';
+const DEFAULT_HPP='5'
+const PATH_BASE = 'https://hn.algolia.com/api/v1';
+const PATH_SEARCH = '/search';
+const PARAM_SEARCH = 'query=';
+const PARAM_PAGE='page=';
+const PARAM_HPP='hitsPerPage=';
 
-const list = [
-    {
-        title: 'React',
-        url: 'https://facebook.github.io/react/',
-        author: 'Jordan Walke',
-        num_comments: 3,
-        points: 4,
-        objectID: 0,
-    },
-    {
-        title: 'Redux',
-        url: 'https://github.com/reactjs/redux',
-        author: 'Dan Abramov, Andrew Clark',
-        num_comments: 2,
-        points: 5,
-        objectID: 1,
-    },
-];
+const url = `${PATH_BASE}${PARAM_SEARCH}?${PARAM_SEARCH}${DEFAULT_QUERY}`;
+
 
 class Button extends Component {
     render() {
@@ -34,7 +26,8 @@ class Button extends Component {
             <button
                 onClick={onClick}
                 className={className}
-                type="button"
+                type="bu
+                tton"
             >
                 {children}
             </button>
@@ -47,37 +40,129 @@ class App extends Component {
     {
         super(props);
         this.state = {
-            list, // shorthand for list: list,
-            searchTerm: '',
+            results : [],
+            lastSearch : '',
+            searchTerm: DEFAULT_QUERY,
+            error : null,
         };
+        this.needsToSearchTopStories =  this.needsToSearchTopStories.bind(this);
+        this.setSearchTopStories = this.setSearchTopStories.bind(this);
+        this.fetchSearchTopStories = this.fetchSearchTopStories.bind(this);
         this.onDismiss =  this.onDismiss.bind(this); //Make onDismiss a class method
         this.onSearchChange = this.onSearchChange.bind(this);
+        this.onSearchSubmit = this.onSearchSubmit.bind(this);
+        this.doSearch = this.doSearch.bind(this);
+
     }
+
+
+    /**
+     * checks if searchTerm is already in cache
+     * @param searchTerm
+     */
+    needsToSearchTopStories(searchTerm)
+    {
+        return !this.state.results[searchTerm];
+    }
+    /**
+     * Concatenates current page with all the previous pages
+     * @param result
+     */
+    setSearchTopStories(result)
+    {
+        const {hits, page } = result;
+        const {lastSearch, results} = this.state;
+
+
+        const oldHits = results && results[lastSearch]
+            ? results[lastSearch].hits
+            : [];
+
+        const updatedHits = [...oldHits, ...hits];
+
+        //set current result in results array with key: lastSearch
+        this.setState({ //this syntax creates new key with name taken from lastSearch variable
+            results: { ...results, [lastSearch]: { hits: updatedHits, page } }
+        });
+
+
+    }
+
+    fetchSearchTopStories(searchTerm, page = 0) {
+        console.log(`${PATH_BASE}${PATH_SEARCH}?${PARAM_SEARCH}${searchTerm}`);
+        axios(`${PATH_BASE}${PATH_SEARCH}?${PARAM_SEARCH}${searchTerm}&${PARAM_PAGE}${page}&${PARAM_HPP}${DEFAULT_HPP}`)
+            .then(result => this.setSearchTopStories(result.data))
+            .catch(error => this.setState({error}));
+    }
+
+    onSearchSubmit(event)
+    {
+        this.doSearch();
+        event.preventDefault();
+    }
+
+    doSearch()
+    {
+        const { searchTerm } = this.state;
+        this.setState({lastSearch: searchTerm});
+        if (this.needsToSearchTopStories(searchTerm))
+            this.fetchSearchTopStories(searchTerm);
+
+    }
+    componentDidMount()
+    {
+        this.doSearch();
+    }
+
     render() {
         //const hello_world = "Привет, мир!!";
-        const {searchTerm, list } = this.state;
+        const {searchTerm, results, lastSearch, error } = this.state;
+        const page = (results && results[lastSearch] && results[lastSearch].page) || 0;
+        const list = (results && results[lastSearch] && results[lastSearch].hits) || [];
+
         return (
-            <div className="App">
-                <Search
-                    value={searchTerm}
-                    onChange={this.onSearchChange} >
-                    Search
-                </Search>
-                <Table
-                    list={list}
-                    pattern={searchTerm}
-                    onDismiss={this.onDismiss} />
+            <div className="page">
+                <div className="interactions">
+                    <Search
+                        value={searchTerm}
+                        onChange={this.onSearchChange}
+                        onSubmit={this.onSearchSubmit}>
+                        Search
+                    </Search>
+                </div>
+                {error
+                    ? <div className="interactions">
+                        <p>Something went wrong</p>
+                    </div>
+
+                    : <Table
+                        list={list}
+                        onDismiss={this.onDismiss}/>
+                }
 
 
-
+                <div className="interactions">
+                    <Button onClick={() => this.fetchSearchTopStories(lastSearch, page + 1)}>
+                        More
+                    </Button>
+                </div>
             </div>
         );
     }
-    onDismiss(id){
+    onDismiss(id) {
+        const {lastSearch, results} = this.state;
+        const {hits, page} = results[lastSearch];
         const isNotId = item => item.objectID !== id;
 
-        const updatedList = this.state.list.filter(isNotId);
-        this.setState({list: updatedList});
+        const updatedHits = hits.filter(isNotId);
+
+        this.setState({
+            results: {
+                ...results,
+                [lastSearch]: {hits: updatedHits, page}
+            }
+
+        });
     }
 
     onSearchChange(event)
@@ -103,12 +188,13 @@ class Search extends Component
     }
 }
 */
-const Search = ({value, onChange, children}) =>
-            <form>
+const Search = ({value, onChange, onSubmit, children}) =>
+            <form onSubmit={onSubmit}>
                 {children}
                 <input type="text"
                        value={value}
                        onChange={onChange}/>
+                <button type="submit">{children}</button>
             </form>
 
 
@@ -147,7 +233,35 @@ class Table extends Component
     }
 }
  */
+const Table = ({list, onDismiss}) =>
+    <div>
+            {list.
+            map(item =>
 
+                <div key={item.objectID} className="table-row">
+                    <span style={{width : '40%'}}>
+                        <a href={item.url}> {item.title} </a>
+                    </span>
+                    <span style={{width : '30%'}}>
+                        {item.author}
+                    </span>
+                    <span style={{width: '10%'}}>
+                        {item.num_comments}
+                    </span>
+                    <span style={{width: '10%'}}>
+                        {item.points}
+                    </span>
+                    <span style={{width: '10%'}}>
+                        <Button
+                            onClick={ () => onDismiss(item.objectID)}
+                            className="button-inline">
+                            Dismiss
+                        </Button>
+                    </span>
+                </div>
+
+            )}
+    </div>
 
 export default App;
 /*
