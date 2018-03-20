@@ -2,7 +2,8 @@ import React, { Component } from 'react';
 import logo from './logo.svg';
 import './App.css';
 import axios from 'axios'
-//const isSearched = searchTerm => item => item.title.toLowerCase().includes(searchTerm.toLowerCase());
+import PropTypes from 'prop-types';
+//const isSearched = searchTerm => sssssddsitem => item.title.toLowerCase().includes(searchTerm.toLowerCase());
 
 const DEFAULT_QUERY = 'redux';
 const DEFAULT_HPP='5'
@@ -13,6 +14,7 @@ const PARAM_PAGE='page=';
 const PARAM_HPP='hitsPerPage=';
 
 const url = `${PATH_BASE}${PARAM_SEARCH}?${PARAM_SEARCH}${DEFAULT_QUERY}`;
+
 
 
 class Button extends Component {
@@ -26,14 +28,19 @@ class Button extends Component {
             <button
                 onClick={onClick}
                 className={className}
-                type="bu
-                tton"
+                type="button"
             >
                 {children}
             </button>
         );
     }
+
 }
+Button.propTypes = {
+  onClick: PropTypes.func.isRequired,
+  className: PropTypes.string,
+  children: PropTypes.node.isRequired
+};
 
 class App extends Component {
     constructor(props)
@@ -188,14 +195,32 @@ class Search extends Component
     }
 }
 */
-const Search = ({value, onChange, onSubmit, children}) =>
+class Search extends Component {
+    render() {
+        const {value, onChange, onSubmit, children} = this.props;
+        return (
             <form onSubmit={onSubmit}>
                 {children}
                 <input type="text"
                        value={value}
-                       onChange={onChange}/>
+                       onChange={onChange}
+                ref={(node) => {this.input = node;}}/>
                 <button type="submit">{children}</button>
             </form>
+        );
+    }
+    componentDidMount()
+    {
+        if (this.input) {
+            this.input.focus();
+        }
+        else
+        {
+            console.log("Input not created");
+        }
+
+    }
+}
 
 
 
@@ -263,6 +288,20 @@ const Table = ({list, onDismiss}) =>
             )}
     </div>
 
+
+
+Table.propTypes = {
+    list: PropTypes.arrayOf(
+        PropTypes.shape({
+            objectID: PropTypes.string.isRequired,
+            author: PropTypes.string,
+            url: PropTypes.string,
+            num_comments: PropTypes.number,
+            points: PropTypes.number,
+        })
+    ).isRequired,
+    onDismiss: PropTypes.func.isRequired,
+};
 export default App;
 /*
 class ExplainBindingsComponent extends Component {
@@ -286,3 +325,9 @@ class ExplainBindingsComponent extends Component {
 }
 export default ExplainBindingsComponent;
 */
+
+export {
+    Button,
+    Search,
+    Table,
+};
